@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "perfmode-rust"
+name = "perfmode"
 version = "0.1.0"
