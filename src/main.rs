@@ -48,6 +48,7 @@ enum Error {
     BadFp,
     NoPermission,
     InvalidArgFun,
+    FileWriteError,
     Unknown,
 }
 
@@ -58,6 +59,7 @@ impl std::fmt::Display for Error {
             Error::BadFp => write!(f, "Bad file pointer"),
             Error::NoPermission => write!(f, "No permission"),
             Error::InvalidArgFun => write!(f, "Invalid Argument to function"),
+            Error::FileWriteError => write!(f, "Unable to write to file"),
             Error::Unknown => write!(f, "Invalid Error Reported!"),
         }
     }
@@ -87,4 +89,49 @@ fn print_help() {
         \x1b[1;4;31mHelp\x1b[m\n\
         \x1b[31m\t-help\x1b[m               Display help\n"
     );
+}
+
+fn parse_args(args: &[String]) -> Result<(Operator, Operation), Error> {
+    if args.len() < 2 {
+        return Ok((Operator::Help, Operation::Get));
+    }
+
+    match args[1].as_str() {
+        "-help" | "-h" => Ok((Operator::Help, Operation::Get)),
+        "-fan" | "-f" => parse_fan_args(&args[2]),
+        "-thermal" | "-t" => parse_thermal_args(&args[2]),
+        "-led" | "-l" => parse_led_args(&args[2]),
+        _ => Err(Error::InvalidArgv),
+    }
+}
+
+fn parse_fan_args(arg: &str) -> Result<(Operator, Operation), Error> {
+    match arg {
+        "silent" | "s" => Ok((Operator::Fan, Operation::Silent)),
+        "balanced" | "b" => Ok((Operator::Fan, Operation::Balanced)),
+        "turbo" | "t" => Ok((Operator::Fan, Operation::Turbo)),
+        "get" | "g" => Ok((Operator::Fan, Operation::Get)),
+        _ => Err(Error::InvalidArgv),
+    }
+}
+
+fn parse_thermal_args(arg: &str) -> Result<(Operator, Operation), Error> {
+    match arg {
+        "silent" | "s" => Ok((Operator::Thermal, Operation::Silent)),
+        "default" | "df" => Ok((Operator::Thermal, Operation::Default)),
+        "overboost" | "ob" => Ok((Operator::Thermal, Operation::Overboost)),
+        "get" | "g" => Ok((Operator::Thermal, Operation::Get)),
+        _ => Err(Error::InvalidArgv),
+    }
+}
+
+fn parse_led_args(arg: &str) -> Result<(Operator, Operation), Error> {
+    match arg {
+        "off" => Ok((Operator::Led, Operation::Off)),
+        "min" => Ok((Operator::Led, Operation::Min)),
+        "med" => Ok((Operator::Led, Operation::Med)),
+        "max" => Ok((Operator::Led, Operation::Max)),
+        "get" | "g" => Ok((Operator::Led, Operation::Get)),
+        _ => Err(Error::InvalidArgv),
+    }
 }
