@@ -1,3 +1,6 @@
+use std::fs::File;
+use std::io::{Read, Write};
+
 enum FileList {
     LedFile,
     AsusThermalPolicy,
@@ -134,4 +137,111 @@ fn parse_led_args(arg: &str) -> Result<(Operator, Operation), Error> {
         "get" | "g" => Ok((Operator::Led, Operation::Get)),
         _ => Err(Error::InvalidArgv),
     }
+}
+
+fn identify_file(operator: &Operator, operation: &Operation) -> Result<FileList, Error> {
+    match operator {
+        Operator::Led => check_file_access(FileList::LedFile, operation),
+        Operator::Fan => {
+            if file_exists(&FileList::AsusFanPolicy, operation) {
+                Ok(FileList::AsusFanPolicy)
+            } else if file_exists(&FileList::FstsFanPolicy, operation) {
+                Ok(FileList::FstsFanPolicy)
+            } else {
+                Err(Error::NoPermission)
+            }
+        }
+        Operator::Thermal => {
+            if file_exists(&FileList::AsusThermalPolicy, operation) {
+                Ok(FileList::AsusThermalPolicy)
+            } else if file_exists(&FileList::FstsThermalPolicy, operation) {
+                Ok(FileList::FstsThermalPolicy)
+            } else {
+                Err(Error::NoPermission)
+            }
+        }
+        Operator::Help => Err(Error::InvalidArgFun),
+    }
+}
+
+fn file_exists(file: &FileList, operation: &Operation) -> bool {
+    let path = std::path::Path::new(file.path());
+    if matches!(operation, Operation::Get) {
+        path.exists()
+            && path
+                .metadata()
+                .map(|m| m.permissions().readonly())
+                .unwrap_or(true)
+    } else {
+        path.exists()
+            && path
+                .metadata()
+                .map(|m| !m.permissions().readonly())
+                .unwrap_or(false)
+    }
+}
+
+fn check_file_access(file: FileList, operation: &Operation) -> Result<FileList, Error> {
+    if file_exists(&file, operation) {
+        Ok(file)
+    } else {
+        Err(Error::NoPermission)
+    }
+}
+
+fn write_to_file(
+    file_path: &str,
+    value: char,
+    operator: &Operator,
+    operation: &Operation,
+) -> Result<(), Error> {
+    let mut file = File::create(file_path).map_err(|_| Error::BadFp)?;
+    file.write_all(&[value as u8])
+        .map_err(|_| Error::FileWriteError)?;
+
+    let msg = format!(
+        "Set {} policy to {:?}",
+        match operator {
+            Operator::Led => "led",
+            Operator::Fan => "fan",
+            Operator::Thermal => "thermal",
+            Operator::Help => "help",
+        },
+        operation
+    );
+    println!("Perfmode: {}", msg);
+    Ok(())
+}
+
+fn read_from_file(file_path: &str, operator: &Operator) -> Result<(), Error> {
+    let mut file = File::open(file_path).map_err(|_| Error::BadFp)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .map_err(|_| Error::BadFp)?;
+
+    let value = match operator {
+        Operator::Led => match contents.trim() {
+            "0" => "off",
+            "1" => "min",
+            "2" => "med",
+            "3" => "max",
+            _ => return Err(Error::Unknown),
+        },
+        Operator::Fan => match contents.trim() {
+            "0" => "balanced",
+            "1" => "turbo",
+            "2" => "silent",
+            _ => return Err(Error::Unknown),
+        },
+        Operator::Thermal => match contents.trim() {
+            "0" => "default",
+            "1" => "overboost",
+            "2" => "silent",
+            _ => return Err(Error::Unknown),
+        },
+        Operator::Help => return Err(Error::InvalidArgFun),
+    };
+
+    println!("{}", value);
+    Ok(())
 }
