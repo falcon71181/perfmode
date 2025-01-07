@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::{Read, Write};
+use std::process::exit;
 
 enum FileList {
     LedFile,
@@ -244,4 +245,58 @@ fn read_from_file(file_path: &str, operator: &Operator) -> Result<(), Error> {
 
     println!("{}", value);
     Ok(())
+}
+
+fn perform_operation(
+    file_list: FileList,
+    operator: &Operator,
+    operation: &Operation,
+) -> Result<(), Error> {
+    match operation {
+        Operation::Get => read_from_file(file_list.path(), operator),
+        _ => {
+            let value =
+                match (operator, operation) {
+                    (Operator::Led, Operation::Off) => '0',
+                    (Operator::Led, Operation::Min) => '1',
+                    (Operator::Led, Operation::Med) => '2',
+                    (Operator::Led, Operation::Max) => '3',
+                    (Operator::Fan | Operator::Thermal, Operation::Silent) => '2',
+                    (Operator::Fan, Operation::Balanced)
+                    | (Operator::Thermal, Operation::Default) => '0',
+                    (Operator::Fan, Operation::Turbo)
+                    | (Operator::Thermal, Operation::Overboost) => '1',
+                    _ => return Err(Error::InvalidArgFun),
+                };
+            write_to_file(file_list.path(), value, operator, operation)
+        }
+    }
+}
+
+//TODO: use logger & write logs to dot folder date wise
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+
+    match parse_args(&args) {
+        Ok((Operator::Help, _)) => {
+            print_help();
+            exit(1);
+        }
+        Ok((operator, operation)) => match identify_file(&operator, &operation) {
+            Ok(file) => {
+                if let Err(e) = perform_operation(file, &operator, &operation) {
+                    eprintln!("Perfmode: {}", e);
+                    exit(1);
+                }
+            }
+            Err(e) => {
+                eprintln!("Perfmode: {}", e);
+                exit(1);
+            }
+        },
+        Err(e) => {
+            eprintln!("Perfmode: {}", e);
+            exit(1);
+        }
+    }
 }
