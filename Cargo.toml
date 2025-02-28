@@ -2,5 +2,14 @@
 name = "perfmode"
 version = "0.1.0"
 edition = "2021"
+categories = ["command-line-utilities", "hardware-support", "config", "accessibility", "no-std"]
+description = "Fan/Performance Control for ASUS TUF Gaming laptops"
+documentation = "https://github.com/falcon71181/perfmode/blob/main/README.md"
+readme = "README.md"
+authors = ["falcon71181"]
+keywords = ["cli", "asus", "tuf", "fan-control", "fan"]
+repository = "https://github.com/falcon71181/perfmode"
+license = "MIT"
+license-file = "LICENSE"
 
 [dependencies]
